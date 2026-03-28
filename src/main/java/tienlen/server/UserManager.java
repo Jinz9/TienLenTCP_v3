@@ -5,7 +5,7 @@ import tienlen.utils.PasswordUtil;
 import java.sql.*;
 
 public class UserManager {
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/tienlencards";
+    private static final String DB_URL = "jdbc:mysql://localhost:3307/tienlencards";
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "";  // Thay đổi password của bạn nếu cần
     private static UserManager instance;
@@ -25,7 +25,7 @@ public class UserManager {
     private void initDatabase() {
         try {
             // Tạo database nếu chưa tồn tại
-            String createDbUrl = "jdbc:mysql://localhost:3306";
+            String createDbUrl = "jdbc:mysql://localhost:3307";
             try (Connection conn = DriverManager.getConnection(createDbUrl, DB_USER, DB_PASSWORD)) {
                 String createDbSql = "CREATE DATABASE IF NOT EXISTS tienlencards CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
                 try (Statement stmt = conn.createStatement()) {
