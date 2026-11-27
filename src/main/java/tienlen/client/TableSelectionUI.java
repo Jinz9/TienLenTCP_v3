@@ -29,6 +29,10 @@ public class TableSelectionUI {
     private VBox tableListBox;
     private Label statusLabel;
     private Label balanceLabel;
+    private Label quickTotalGamesVal;
+    private Label quickWinsVal;
+    private Label quickWinRateVal;
+    private Label quickNetProfitVal;
     private Map<String, TableInfo> tables = new HashMap<>();
     private Map<String, String[]> playerStatsCache = new HashMap<>(); // Cache thống kê
     private String selectedSessionId = null;
@@ -61,47 +65,59 @@ public class TableSelectionUI {
         this.username = username;
     }
 
-    public VBox createRootPane() {
-        VBox root = new VBox(0);
+    public javafx.scene.layout.BorderPane createRootPane() {
+        javafx.scene.layout.BorderPane root = new javafx.scene.layout.BorderPane();
         root.setStyle("-fx-background-color: linear-gradient(to bottom, #0a0e27, #1a1a3e);");
 
-        // ========== HERO BANNER ==========
+        // ========== TOP: COMPACT HERO BANNER ==========
         VBox heroBanner = createHeroBanner();
-        
-        // ========== MAIN CONTENT ==========
-        HBox mainContent = new HBox(30);
-        mainContent.setPadding(new Insets(40, 60, 40, 60));
+        root.setTop(heroBanner);
+
+        // ========== CENTER: MAIN CONTENT ==========
+        HBox mainContent = new HBox(20);
+        mainContent.setPadding(new Insets(16, 24, 12, 24));
         mainContent.setStyle("-fx-background-color: transparent;");
 
-        // Left sidebar - Profile + Quick Stats
+        // Left sidebar wrapped in ScrollPane so it never clips on smaller screens
         VBox leftSidebar = createLeftSidebar();
-        leftSidebar.setPrefWidth(320);
+        ScrollPane leftScroll = new ScrollPane(leftSidebar);
+        leftScroll.setFitToWidth(true);
+        leftScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        leftScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        leftScroll.setPrefWidth(285);
+        leftScroll.setMinWidth(240);
+        leftScroll.setMaxWidth(310);
+        leftScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;");
 
         // Right content - Game Tables
         VBox rightContent = createRightContent();
         HBox.setHgrow(rightContent, Priority.ALWAYS);
 
-        mainContent.getChildren().addAll(leftSidebar, rightContent);
+        mainContent.getChildren().addAll(leftScroll, rightContent);
+        root.setCenter(mainContent);
 
-        root.getChildren().addAll(heroBanner, mainContent);
-        VBox.setVgrow(mainContent, Priority.ALWAYS);
+        // ========== BOTTOM: PINNED CONTROL BAR ==========
+        HBox controlBox = createControlBox();
+        controlBox.setPadding(new Insets(10, 24, 14, 24));
+        controlBox.setStyle("-fx-background-color: rgba(10, 14, 39, 0.85); -fx-border-color: rgba(78, 204, 163, 0.35); -fx-border-width: 1 0 0 0;");
+        root.setBottom(controlBox);
 
         return root;
     }
 
     private VBox createHeroBanner() {
-        VBox banner = new VBox();
-        banner.setPadding(new Insets(50, 60, 40, 60));
+        VBox banner = new VBox(4);
+        banner.setPadding(new Insets(14, 24, 12, 24));
         banner.setStyle("-fx-background: linear-gradient(135deg, rgba(78,204,163,0.3), rgba(255,215,0,0.2)); " +
                 "-fx-border-color: #4ecca3; -fx-border-width: 0 0 2 0;");
-        banner.setAlignment(Pos.TOP_LEFT);
+        banner.setAlignment(Pos.CENTER_LEFT);
 
         Label title = new Label("🎮 TIẾN LÊN ONLINE");
-        title.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 56));
+        title.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 28));
         title.setTextFill(Color.web("#FFD700"));
 
         Label subtitle = new Label("Tham gia bàn chơi hoặc tạo bàn mới của riêng bạn");
-        subtitle.setFont(Font.font("Segoe UI", 16));
+        subtitle.setFont(Font.font("Segoe UI", 13));
         subtitle.setStyle("-fx-text-fill: #4ecca3;");
 
         banner.getChildren().addAll(title, subtitle);
@@ -109,7 +125,7 @@ public class TableSelectionUI {
     }
 
     private VBox createLeftSidebar() {
-        VBox sidebar = new VBox(25);
+        VBox sidebar = new VBox(14);
         sidebar.setStyle("-fx-background-color: transparent;");
 
         // ========== PROFILE CARD ==========
@@ -123,8 +139,8 @@ public class TableSelectionUI {
     }
 
     private VBox createProfileCard() {
-        VBox card = new VBox(20);
-        card.setPadding(new Insets(30));
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(16));
         card.setStyle("-fx-background-color: linear-gradient(135deg, rgba(78,204,163,0.15), rgba(255,215,0,0.08)); " +
                 "-fx-border-color: #4ecca3; -fx-border-width: 2; -fx-border-radius: 15; " +
                 "-fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 12, 0, 0, 4);");
@@ -132,13 +148,13 @@ public class TableSelectionUI {
 
         // Avatar Circle
         VBox avatarBox = new VBox();
-        avatarBox.setPrefHeight(100);
+        avatarBox.setPrefHeight(72);
         avatarBox.setAlignment(Pos.CENTER);
-        Circle avatar = new Circle(50);
+        Circle avatar = new Circle(34);
         avatar.setStyle("-fx-fill: linear-gradient(135deg, #4ecca3, #FFD700); " +
                 "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 8, 0, 0, 2);");
         Label avatarIcon = new Label("👤");
-        avatarIcon.setFont(Font.font("Arial", 40));
+        avatarIcon.setFont(Font.font("Arial", 28));
         avatarIcon.setAlignment(Pos.CENTER);
         avatarBox.getChildren().add(avatar);
         
@@ -146,21 +162,21 @@ public class TableSelectionUI {
         avatarStack.setAlignment(Pos.CENTER);
 
         // Player Info
-        VBox playerInfo = new VBox(8);
+        VBox playerInfo = new VBox(4);
         playerInfo.setAlignment(Pos.CENTER);
 
         Label playerNameLabel = new Label(username);
-        playerNameLabel.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 22));
+        playerNameLabel.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 18));
         playerNameLabel.setStyle("-fx-text-fill: #ffffff;");
 
         Label levelLabel = new Label("🏆 LEVEL 5");
-        levelLabel.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 12; -fx-font-weight: bold;");
+        levelLabel.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 11; -fx-font-weight: bold;");
 
         playerInfo.getChildren().addAll(playerNameLabel, levelLabel);
 
         // Balance Section
-        VBox balanceSection = new VBox(8);
-        balanceSection.setPadding(new Insets(20));
+        VBox balanceSection = new VBox(4);
+        balanceSection.setPadding(new Insets(10, 12, 10, 12));
         balanceSection.setStyle("-fx-background-color: rgba(255,215,0,0.1); " +
                 "-fx-border-color: #FFD700; -fx-border-width: 1; -fx-border-radius: 10; " +
                 "-fx-background-radius: 10;");
@@ -170,7 +186,7 @@ public class TableSelectionUI {
         balanceTag.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 10; -fx-font-weight: bold; -fx-letter-spacing: 2;");
 
         balanceLabel = new Label("💰 (Đang cập nhật...)");
-        balanceLabel.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 24));
+        balanceLabel.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 19));
         balanceLabel.setStyle("-fx-text-fill: #FFD700;");
 
         balanceSection.getChildren().addAll(balanceTag, balanceLabel);
@@ -191,8 +207,8 @@ public class TableSelectionUI {
     }
 
     private VBox createQuickStatsCard() {
-        VBox card = new VBox(15);
-        card.setPadding(new Insets(25));
+        VBox card = new VBox(10);
+        card.setPadding(new Insets(14, 16, 14, 16));
         card.setStyle("-fx-background-color: rgba(78,204,163,0.1); " +
                 "-fx-border-color: #4ecca3; -fx-border-width: 1; -fx-border-radius: 12; " +
                 "-fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 8, 0, 0, 2);");
@@ -201,9 +217,13 @@ public class TableSelectionUI {
         title.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 12; -fx-font-weight: bold; -fx-letter-spacing: 1;");
 
         HBox stat1 = createStatRow("🎮 Tổng Ván", "0 ván");
+        quickTotalGamesVal = (Label) stat1.getChildren().get(1);
         HBox stat2 = createStatRow("✅ Thắng", "0 ván");
+        quickWinsVal = (Label) stat2.getChildren().get(1);
         HBox stat3 = createStatRow("📈 Tỉ Lệ", "0%");
+        quickWinRateVal = (Label) stat3.getChildren().get(1);
         HBox stat4 = createStatRow("💸 Tổng Lãi", "0 VND");
+        quickNetProfitVal = (Label) stat4.getChildren().get(1);
 
         card.getChildren().addAll(title, stat1, stat2, stat3, stat4);
         return card;
@@ -227,7 +247,7 @@ public class TableSelectionUI {
     }
 
     private VBox createRightContent() {
-        VBox content = new VBox(20);
+        VBox content = new VBox(12);
         content.setStyle("-fx-background-color: transparent;");
 
         // Header
@@ -235,7 +255,7 @@ public class TableSelectionUI {
         header.setAlignment(Pos.CENTER_LEFT);
 
         Label contentTitle = new Label("📋 Danh sách bàn chơi");
-        contentTitle.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 20));
+        contentTitle.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 18));
         contentTitle.setStyle("-fx-text-fill: #ffffff;");
 
         statusLabel = new Label("Đang tải...");
@@ -246,22 +266,19 @@ public class TableSelectionUI {
         header.getChildren().addAll(contentTitle, statusLabel);
 
         // Table List
-        tableListBox = new VBox(18);
-        tableListBox.setPadding(new Insets(0));
+        tableListBox = new VBox(14);
+        tableListBox.setPadding(new Insets(4));
         tableListBox.setStyle("-fx-background-color: transparent;");
 
         ScrollPane scrollPane = new ScrollPane(tableListBox);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-control-inner-background: transparent; -fx-padding: 0; " +
-                "-fx-background-color: transparent;");
-        scrollPane.setPrefHeight(400);
+        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent; " +
+                "-fx-border-color: rgba(78,204,163,0.25); -fx-border-radius: 10;");
+        scrollPane.setMinHeight(160);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
-        // Control Buttons
-        HBox controlBox = createControlBox();
-
-        content.getChildren().addAll(header, scrollPane, controlBox);
+        content.getChildren().addAll(header, scrollPane);
         return content;
     }
 
@@ -293,8 +310,9 @@ public class TableSelectionUI {
 
         content.getChildren().addAll(titleLabel, loadingLabel, statsGrid);
         statsDialog.getDialogPane().setContent(content);
-        statsDialog.getDialogPane().setPrefWidth(550);
-        statsDialog.getDialogPane().setPrefHeight(420);
+        statsDialog.getDialogPane().setMinWidth(420);
+        statsDialog.getDialogPane().setMinHeight(340);
+        statsDialog.setResizable(true);
 
         // Yêu cầu thống kê từ server
         new Thread(() -> {
@@ -305,6 +323,7 @@ public class TableSelectionUI {
                 
                 Platform.runLater(() -> {
                     loadingLabel.setVisible(false);
+                    loadingLabel.setManaged(false);
                     
                     String[] stats = playerStatsCache.getOrDefault(username, 
                             new String[]{"0", "0", "0", "0", "0"});
@@ -319,6 +338,10 @@ public class TableSelectionUI {
                     addStatRow(statsGrid, 2, "Ván Thua", stats[2]);
                     addStatRow(statsGrid, 3, "Tỉ Lệ Thắng", String.format("%.1f%%", winRate));
                     addStatRow(statsGrid, 4, "Tổng Tiền Thắng/Thua", (stats[4].startsWith("-") ? "" : "+") + stats[4] + " VND");
+
+                    if (statsDialog.getDialogPane().getScene() != null && statsDialog.getDialogPane().getScene().getWindow() != null) {
+                        statsDialog.getDialogPane().getScene().getWindow().sizeToScene();
+                    }
                 });
             } catch (InterruptedException e) {
                 Platform.runLater(() -> loadingLabel.setText("Lỗi tải thống kê"));
@@ -329,32 +352,31 @@ public class TableSelectionUI {
     }
 
     private HBox createControlBox() {
-        HBox box = new HBox(20);
+        HBox box = new HBox(16);
         box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(20, 0, 0, 0));
 
         Button createTableBtn = new Button("➕ TẠO BÀN MỚI");
         styleButton(createTableBtn, "#4CAF50", "#66BB6A");
         createTableBtn.setOnAction(e -> requestNewTable());
-        createTableBtn.setPrefWidth(220);
-        createTableBtn.setPrefHeight(50);
-        createTableBtn.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 14));
+        createTableBtn.setPrefWidth(200);
+        createTableBtn.setPrefHeight(40);
+        createTableBtn.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 13));
 
         Button refreshBtn = new Button("🔄 LÀM MỚI");
         styleButton(refreshBtn, "#2196F3", "#42A5F5");
         refreshBtn.setOnAction(e -> refreshTablesList());
-        refreshBtn.setPrefWidth(220);
-        refreshBtn.setPrefHeight(50);
-        refreshBtn.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 14));
+        refreshBtn.setPrefWidth(200);
+        refreshBtn.setPrefHeight(40);
+        refreshBtn.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 13));
 
         Button quitBtn = new Button("❌ QUAY LẠI");
         styleButton(quitBtn, "#F44336", "#EF5350");
         quitBtn.setOnAction(e -> {
             if (onQuit != null) onQuit.run();
         });
-        quitBtn.setPrefWidth(220);
-        quitBtn.setPrefHeight(50);
-        quitBtn.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 14));
+        quitBtn.setPrefWidth(200);
+        quitBtn.setPrefHeight(40);
+        quitBtn.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 13));
 
         box.getChildren().addAll(createTableBtn, refreshBtn, quitBtn);
         return box;
@@ -381,6 +403,9 @@ public class TableSelectionUI {
     // Public method để refresh danh sách từ ngoài
     public void refreshTablesList() {
         requestTablesList();
+        if (out != null && username != null && !username.isEmpty()) {
+            out.println(Protocol.encode(new Message(Protocol.GET_PLAYER_STATS, username)));
+        }
     }
 
     private void requestNewTable() {
@@ -488,22 +513,22 @@ public class TableSelectionUI {
     }
 
     private HBox createTableRow(TableInfo info) {
-        HBox card = new HBox(20);
-        card.setPadding(new Insets(25));
+        HBox card = new HBox(16);
+        card.setPadding(new Insets(14, 18, 14, 18));
         card.setAlignment(Pos.CENTER_LEFT);
         card.setStyle("-fx-background-color: #1e5a5a; " +
-                "-fx-border-color: #FFD700; -fx-border-width: 3; -fx-border-radius: 15; " +
-                "-fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(255,215,0,0.8), 15, 0, 0, 5); " +
+                "-fx-border-color: #FFD700; -fx-border-width: 2; -fx-border-radius: 12; " +
+                "-fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(255,215,0,0.45), 10, 0, 0, 3); " +
                 "-fx-cursor: hand;");
 
         // Status Icon
         VBox statusBox = new VBox();
         statusBox.setAlignment(Pos.CENTER);
-        statusBox.setPrefWidth(80);
+        statusBox.setPrefWidth(56);
         
         String statusEmoji = info.status.equals("RUNNING") ? "⏱️" : "🟢";
         Label statusIcon = new Label(statusEmoji);
-        statusIcon.setFont(Font.font("Arial", 48));
+        statusIcon.setFont(Font.font("Arial", 34));
         statusBox.getChildren().add(statusIcon);
 
         // Main Info
@@ -631,16 +656,19 @@ public class TableSelectionUI {
 
         // Nếu có thông tin người chơi
         if (info.playerNames != null && info.playerCount > 0 && info.playerNames[0] != null) {
-            for (int i = 0; i < info.playerCount; i++) {
+            int displayIdx = 0;
+            for (int i = 0; i < info.playerCount && i < info.playerNames.length; i++) {
 
                 String playerName = info.playerNames[i];
+                if (playerName == null || playerName.trim().isEmpty()) continue;
+                displayIdx++;
                 long playerBalance = info.playerBalances[i];
 
                 HBox playerRow = new HBox(20);
                 playerRow.setStyle("-fx-padding: 12; -fx-border-color: #eee; -fx-border-width: 0 0 1 0;");
                 playerRow.setAlignment(Pos.CENTER_LEFT);
 
-                Label nameLabel = new Label((i + 1) + ". " + playerName);
+                Label nameLabel = new Label(displayIdx + ". " + playerName);
                 nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14;");
                 nameLabel.setPrefWidth(160);
 
@@ -666,8 +694,8 @@ public class TableSelectionUI {
 
         content.getChildren().addAll(titleLabel, headerBox, playersBox);
         dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().setPrefWidth(550);
-        dialog.getDialogPane().setPrefHeight(420);
+        dialog.getDialogPane().setMinWidth(480);
+        dialog.setResizable(true);
 
         dialog.showAndWait();
     }
@@ -695,8 +723,9 @@ public class TableSelectionUI {
 
         content.getChildren().addAll(titleLabel, loadingLabel, statsGrid);
         statsDialog.getDialogPane().setContent(content);
-        statsDialog.getDialogPane().setPrefWidth(550);
-        statsDialog.getDialogPane().setPrefHeight(420);
+        statsDialog.getDialogPane().setMinWidth(440);
+        statsDialog.getDialogPane().setMinHeight(380);
+        statsDialog.setResizable(true);
 
         // Yêu cầu thống kê từ server trên thread riêng
         new Thread(() -> {
@@ -710,6 +739,7 @@ public class TableSelectionUI {
                 
                 Platform.runLater(() -> {
                     loadingLabel.setVisible(false);
+                    loadingLabel.setManaged(false);
                     
                     String[] stats = playerStatsCache.getOrDefault(playerName, 
                             new String[]{"0", "0", "0", "0%", "0", "0"});
@@ -726,6 +756,10 @@ public class TableSelectionUI {
                     addStatRow(statsGrid, 3, "Tỉ Lệ Thắng", String.format("%.1f%%", winRate));
                     addStatRow(statsGrid, 4, "Tổng Tiền Thắng", stats[3].startsWith("-") ? stats[3] : "+" + stats[3] + " VND");
                     addStatRow(statsGrid, 5, "Tổng Tiền Thua", stats[4].startsWith("-") ? stats[4] : "-" + stats[4] + " VND");
+
+                    if (statsDialog.getDialogPane().getScene() != null && statsDialog.getDialogPane().getScene().getWindow() != null) {
+                        statsDialog.getDialogPane().getScene().getWindow().sizeToScene();
+                    }
                 });
             } catch (InterruptedException e) {
                 Platform.runLater(() -> loadingLabel.setText("Lỗi tải thống kê"));
@@ -787,10 +821,25 @@ public class TableSelectionUI {
 
     // Cập nhật cache thống kê từ server
     public void updatePlayerStats(String playerName, String statsData) {
-        // statsData format: totalGames,wins,losses,totalWon,totalLost
+        // statsData format: totalGames,wins,losses,totalWon,totalBet
         String[] parts = statsData.split(",");
         if (parts.length >= 5) {
             playerStatsCache.put(playerName, parts);
+            if (playerName.equals(username) && quickTotalGamesVal != null) {
+                try {
+                    int totalGames = Integer.parseInt(parts[0]);
+                    int wins = Integer.parseInt(parts[1]);
+                    long totalWon = Long.parseLong(parts[3]);
+                    long totalBet = Long.parseLong(parts[4]);
+                    long netProfit = totalWon - totalBet;
+                    double winRate = totalGames > 0 ? (wins * 100.0 / totalGames) : 0;
+
+                    quickTotalGamesVal.setText(totalGames + " ván");
+                    quickWinsVal.setText(wins + " ván");
+                    quickWinRateVal.setText(String.format("%.1f%%", winRate));
+                    quickNetProfitVal.setText((netProfit >= 0 ? "+" : "") + String.format("%,d", netProfit) + " VND");
+                } catch (NumberFormatException ignored) {}
+            }
         }
     }
 }

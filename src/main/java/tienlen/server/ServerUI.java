@@ -50,6 +50,8 @@ public class ServerUI extends Application {
     private VBox statisticsPanel;
     private Map<String, Label> statCardLabels = new HashMap<>();
     private TabPane tabPane;
+    private final long serverStartTimeMs = System.currentTimeMillis();
+    private int peakOnlineToday = 0;
     
     @Override
     public void start(Stage primaryStage) {
@@ -87,9 +89,16 @@ public class ServerUI extends Application {
         // Bottom - Logs
         root.setBottom(createLogsPanel());
         
-        Scene scene = new Scene(root, 1400, 900);
+        javafx.geometry.Rectangle2D visualBounds = javafx.stage.Screen.getPrimary().getVisualBounds();
+        double sceneWidth = Math.min(1150, visualBounds.getWidth() * 0.88);
+        double sceneHeight = Math.min(700, visualBounds.getHeight() * 0.88);
+        Scene scene = new Scene(root, sceneWidth, sceneHeight);
         primaryStage.setTitle("Tiến Lên Server Management");
         primaryStage.setScene(scene);
+        primaryStage.setMinWidth(850);
+        primaryStage.setMinHeight(560);
+        primaryStage.setResizable(true);
+        primaryStage.centerOnScreen();
         primaryStage.show();
         
         // After scene is set, add statistics panel
@@ -528,6 +537,11 @@ public class ServerUI extends Application {
         Platform.runLater(() -> {
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
             logsArea.appendText("[" + timestamp + "] " + message + "\n");
+            if (message != null && message.contains("Server started on port")) {
+                serverStatusLabel.setText("● Server: RUNNING");
+                serverStatusLabel.setTextFill(Color.web("#69F0AE"));
+                serverStatusLabel.setStyle("-fx-font-weight: bold;");
+            }
         });
     }
     
@@ -544,14 +558,16 @@ public class ServerUI extends Application {
             try {
                 serverBackend.start(this);
                 Platform.runLater(() -> {
-                    serverStatusLabel.setText("● Server: RUNNING");
-                    serverStatusLabel.setStyle("-fx-text-fill: #4CAF50;");
+                    serverStatusLabel.setText("● Server: STOPPED");
+                    serverStatusLabel.setTextFill(Color.LIGHTGRAY);
+                    serverStatusLabel.setStyle("-fx-font-weight: normal;");
                 });
             } catch (Exception e) {
                 appendLog("❌ Server Error: " + e.getMessage());
                 Platform.runLater(() -> {
                     serverStatusLabel.setText("● Server: ERROR");
-                    serverStatusLabel.setStyle("-fx-text-fill: #F44336;");
+                    serverStatusLabel.setTextFill(Color.web("#FFCDD2"));
+                    serverStatusLabel.setStyle("-fx-font-weight: bold;");
                 });
             }
         });
@@ -577,54 +593,55 @@ public class ServerUI extends Application {
     }
 
     private void createStatisticsPanel() {
-        // Create Statistics Tab
-        VBox statsContent = new VBox(15);
-        statsContent.setPadding(new Insets(15));
-        statsContent.setStyle("-fx-background-color: #0a0e27;");
-        
+        // Unified clean light theme with 1 accent color per section (no rainbow cards)
+        String playerAccent = "#2196F3";   // Blue
+        String sessionAccent = "#009688";  // Teal
+        String financeAccent = "#2E7D32";  // Green
+        String systemAccent = "#546E7A";   // Slate
+
         // Row 1: Player Statistics
         HBox playerStatsRow = new HBox(15);
-        playerStatsRow.setPrefHeight(120);
+        playerStatsRow.setPrefHeight(110);
         playerStatsRow.getChildren().addAll(
-            createStatCard("👥 Người Chơi Online", "0", "#FF6B6B"),
-            createStatCard("📈 Peak Hôm Nay", "0", "#4ECDC4"),
-            createStatCard("⏱️ Hoạt Động (30m)", "0", "#45B7D1"),
-            createStatCard("🚪 Offline", "0", "#95A5A6")
+            createStatCard("👥 Người Chơi Online", "0", playerAccent),
+            createStatCard("📈 Peak Hôm Nay", "0", playerAccent),
+            createStatCard("⏱️ Hoạt Động (30m)", "0", playerAccent),
+            createStatCard("🚪 Offline", "0", playerAccent)
         );
         
         // Row 2: Session Statistics
         HBox sessionStatsRow = new HBox(15);
-        sessionStatsRow.setPrefHeight(120);
+        sessionStatsRow.setPrefHeight(110);
         sessionStatsRow.getChildren().addAll(
-            createStatCard("🎮 Bàn Đang Chơi", "0", "#F38181"),
-            createStatCard("⏳ Chờ Người", "0", "#AA96DA"),
-            createStatCard("✅ Kết Thúc Hôm Nay", "0", "#FCBAD3"),
-            createStatCard("📊 Tổng Bàn", "0", "#A8D8EA")
+            createStatCard("🎮 Bàn Đang Chơi", "0", sessionAccent),
+            createStatCard("⏳ Chờ Người", "0", sessionAccent),
+            createStatCard("✅ Kết Thúc Hôm Nay", "0", sessionAccent),
+            createStatCard("📊 Tổng Bàn", "0", sessionAccent)
         );
         
         // Row 3: Financial Statistics
         HBox financialStatsRow = new HBox(15);
-        financialStatsRow.setPrefHeight(120);
+        financialStatsRow.setPrefHeight(110);
         financialStatsRow.getChildren().addAll(
-            createStatCard("💰 Tổng Tiền Cược", "0", "#FFE66D"),
-            createStatCard("📊 Cược Trung Bình", "0", "#95E1D3"),
-            createStatCard("💸 Lưu Thông", "0", "#C7CEEA"),
-            createStatCard("🏆 Top Player Tiền", "N/A", "#FF8C42")
+            createStatCard("💰 Tổng Tiền Cược", "0", financeAccent),
+            createStatCard("📊 Cược Trung Bình", "0", financeAccent),
+            createStatCard("💸 Lưu Thông", "0", financeAccent),
+            createStatCard("🏆 Top Player Tiền", "N/A", financeAccent)
         );
         
         // Row 4: System Statistics
         HBox systemStatsRow = new HBox(15);
-        systemStatsRow.setPrefHeight(120);
+        systemStatsRow.setPrefHeight(110);
         systemStatsRow.getChildren().addAll(
-            createStatCard("⚡ Uptime (giờ)", "0", "#B4A7D6"),
-            createStatCard("🔌 Tổng Kết Nối", "0", "#73A580"),
-            createStatCard("⚠️ Lỗi (1h)", "0", "#F0646E"),
-            createStatCard("🕐 Response (ms)", "0", "#D6CDA4")
+            createStatCard("⚡ Uptime", "0m", systemAccent),
+            createStatCard("🔌 Kết Nối Hiện Tại", "0", systemAccent),
+            createStatCard("⚠️ Lỗi (1h)", "0", systemAccent),
+            createStatCard("🕐 Response (ms)", "0", systemAccent)
         );
         
-        statisticsPanel = new VBox(15);
-        statisticsPanel.setPadding(new Insets(15));
-        statisticsPanel.setStyle("-fx-background-color: #0a0e27;");
+        statisticsPanel = new VBox(12);
+        statisticsPanel.setPadding(new Insets(16));
+        statisticsPanel.setStyle("-fx-background-color: #F5F7FA;");
         statisticsPanel.getChildren().addAll(
             createSectionTitle("📈 THỐNG KÊ NGƯỜI CHƠI"),
             playerStatsRow,
@@ -638,7 +655,7 @@ public class ServerUI extends Application {
         
         ScrollPane scrollPane = new ScrollPane(statisticsPanel);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: #0a0e27; -fx-control-inner-background: #0a0e27;");
+        scrollPane.setStyle("-fx-background-color: #F5F7FA; -fx-control-inner-background: #F5F7FA;");
         
         // Use field tabPane which is already initialized
         Tab statsTab = new Tab("📊 Thống Kê", scrollPane);
@@ -646,22 +663,25 @@ public class ServerUI extends Application {
         tabPane.getTabs().add(statsTab);
     }
 
-   
-
-    private VBox createStatCard(String title, String value, String bgColor) {
+    private VBox createStatCard(String title, String value, String accentColor) {
         VBox card = new VBox(8);
         card.setPrefWidth(200);
-        card.setPrefHeight(110);
-        card.setPadding(new Insets(15));
-        card.setStyle("-fx-background-color: " + bgColor + "; -fx-border-radius: 8; " +
-                     "-fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setPrefHeight(105);
+        card.setPadding(new Insets(14, 16, 14, 16));
+        card.setStyle("-fx-background-color: #FFFFFF; " +
+                     "-fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 " + accentColor + "; " +
+                     "-fx-border-width: 1 1 1 4; " +
+                     "-fx-border-radius: 6; -fx-background-radius: 6; " +
+                     "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 6, 0, 0, 2);");
         card.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(card, javafx.scene.layout.Priority.ALWAYS);
         
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #FFFFFF;");
+        titleLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #64748B;");
         
         Label valueLabel = new Label(value);
-        valueLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #FFFFFF;");
+        valueLabel.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #1E293B;");
         
         // Store reference using title as key (use the title string directly for consistency)
         statCardLabels.put(title, valueLabel);
@@ -672,64 +692,62 @@ public class ServerUI extends Application {
 
     private Label createSectionTitle(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #FFD700; " +
-                      "-fx-padding: 10 0 5 0;");
+        label.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1E293B; " +
+                      "-fx-padding: 8 0 2 0;");
         return label;
     }
 
     private void updateStatisticsPanel() {
         if (statisticsPanel == null) return;
-        
+
+        // Fetch DB and backend stats on background thread (not inside Platform.runLater)
+        long startQueryNs = System.nanoTime();
+        UserManager userMgr = UserManager.getInstance();
+
+        int onlinePlayers = serverBackend.getTotalPlayers();
+        if (onlinePlayers > peakOnlineToday) {
+            peakOnlineToday = onlinePlayers;
+        }
+        int peakToday = peakOnlineToday;
+        int activePlayers = userMgr.getActivePlayers30Min();
+        int offlinePlayers = userMgr.getOfflinePlayerCount();
+
+        int activeSessions = userMgr.getActiveSessionCount();
+        int awaitingSessions = userMgr.getWaitingSessionCount();
+        int completedToday = userMgr.getCompletedSessionCountToday();
+        int totalSessions = activeSessions + completedToday;
+
+        long totalBetToday = userMgr.getTotalBetToday();
+        long avgBet = userMgr.getAverageBetToday();
+        long totalFlow = userMgr.getTotalFlow();
+        String topPlayer = userMgr.getTopPlayerToday();
+
+        long queryMs = Math.max(1, (System.nanoTime() - startQueryNs) / 1_000_000);
+        long uptimeMinutes = (System.currentTimeMillis() - serverStartTimeMs) / 60000;
+        String uptimeText = uptimeMinutes >= 60
+                ? (uptimeMinutes / 60) + "h " + (uptimeMinutes % 60) + "m"
+                : uptimeMinutes + "m";
+
         Platform.runLater(() -> {
-            UserManager userMgr = UserManager.getInstance();
-            
-            // Player Stats
-            int onlinePlayers = playersTable.getItems().size();
             updateStatCardValue("👥 Người Chơi Online", String.valueOf(onlinePlayers));
-            
-            int peakToday = onlinePlayers; // TODO: Track peak from database
             updateStatCardValue("📈 Peak Hôm Nay", String.valueOf(peakToday));
-            
-            int activePlayers = userMgr.getActivePlayers30Min();
             updateStatCardValue("⏱️ Hoạt Động (30m)", String.valueOf(activePlayers));
-            
-            int offlinePlayers = userMgr.getOfflinePlayerCount();
             updateStatCardValue("🚪 Offline", String.valueOf(offlinePlayers));
-            
-            // Session Stats
-            int activeSessions = userMgr.getActiveSessionCount();
+
             updateStatCardValue("🎮 Bàn Đang Chơi", String.valueOf(activeSessions));
-            
-            int awaitingSessions = userMgr.getWaitingSessionCount();
             updateStatCardValue("⏳ Chờ Người", String.valueOf(awaitingSessions));
-            
-            int completedToday = userMgr.getCompletedSessionCountToday();
             updateStatCardValue("✅ Kết Thúc Hôm Nay", String.valueOf(completedToday));
-            
-            int totalSessions = activeSessions + completedToday;
             updateStatCardValue("📊 Tổng Bàn", String.valueOf(totalSessions));
-            
-            // Financial Stats - Fixed to use game_records data
-            long totalBetToday = userMgr.getTotalBetToday();
+
             updateStatCardValue("💰 Tổng Tiền Cược", formatCurrency(totalBetToday));
-            
-            long avgBet = userMgr.getAverageBetToday();
             updateStatCardValue("📊 Cược Trung Bình", formatCurrency(avgBet));
-            
-            // Total flow = Total bet today
-            long totalFlow = userMgr.getTotalFlow();
             updateStatCardValue("💸 Lưu Thông", formatCurrency(totalFlow));
-            
-            String topPlayer = userMgr.getTopPlayerToday();
             updateStatCardValue("🏆 Top Player Tiền", topPlayer);
-            
-            // System Stats
-            long uptime = System.currentTimeMillis() / 3600000;
-            updateStatCardValue("⚡ Uptime (giờ)", String.valueOf(uptime));
-            
-            updateStatCardValue("🔌 Tổng Kết Nối", String.valueOf(onlinePlayers));
-            updateStatCardValue("⚠️ Lỗi (1h)", "0"); // TODO: Track errors
-            updateStatCardValue("🕐 Response (ms)", "45"); // TODO: Calculate actual latency
+
+            updateStatCardValue("⚡ Uptime", uptimeText);
+            updateStatCardValue("🔌 Kết Nối Hiện Tại", String.valueOf(onlinePlayers));
+            updateStatCardValue("⚠️ Lỗi (1h)", "0");
+            updateStatCardValue("🕐 Response (ms)", String.valueOf(queryMs));
         });
     }
 

@@ -93,11 +93,17 @@ public class GameLogic {
 	                || next.getComboType() == Move.ComboType.THREE_PAIRS
 	                || next.getComboType() == Move.ComboType.FOUR_PAIRS;
 	        }
-	        //Đôi 2 bị chặt 
+	        // Đôi 2 bị chặt
 	        if (prev.getComboType() == Move.ComboType.PAIR && prev.getHighest().getRank() == 15) {
 	            return next.getComboType() == Move.ComboType.FOUR_KIND
 	                || next.getComboType() == Move.ComboType.FOUR_PAIRS;
 	        }
+	        // 3 đôi thông bị chặt bởi tứ quý hoặc 4 đôi thông
+	        if (prev.getComboType() == Move.ComboType.THREE_PAIRS) {
+	            return next.getComboType() == Move.ComboType.FOUR_KIND
+	                || next.getComboType() == Move.ComboType.FOUR_PAIRS;
+	        }
+	        // Tứ quý bị chặt bởi 4 đôi thông
 	        if (prev.getComboType() == Move.ComboType.FOUR_KIND && next.getComboType() == Move.ComboType.FOUR_PAIRS)
 	            return true;
 

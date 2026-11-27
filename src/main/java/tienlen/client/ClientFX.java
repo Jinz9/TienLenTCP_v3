@@ -31,82 +31,108 @@ public class ClientFX extends Application {
     private String myname;
     private PasswordField passwordField;
     private Button registerBtn;
+    private Button submitRegBtn;
     private TableSelectionUI tableSelectionUI;
     private Stage primaryStage;
     private ServerListener universalListener;  // Listener duy nhất cho tất cả
 
-    @Override
-    public void start(Stage stage) {
-        this.primaryStage = stage;
+    private VBox buildLoginRoot() {
+        Label title = new Label("🎮 TIẾN LÊN MIỀN NAM");
+        title.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 28));
+        title.setTextFill(Color.web("#FFD700"));
 
-        // Tiêu đề game
-        Label title = new Label("Tiến Lên Miền Nam");
-        title.setFont(Font.font("Segoe UI", 30));
-        title.setTextFill(Color.web("#FF6F61")); // màu hồng cam tươi
+        Label subtitle = new Label("Đăng nhập để tham gia sảnh chơi trực tuyến");
+        subtitle.setFont(Font.font("Segoe UI", 12));
+        subtitle.setStyle("-fx-text-fill: #4ecca3;");
 
-        // Các thành phần nhập IP và Connect
         ipField = new TextField("localhost");
-        ipField.setPrefWidth(150);
-        connectBtn = new Button("Connect");
-        styleButton(connectBtn, "#4CAF50", "#66BB6A"); // màu xanh tươi
+        ipField.setPrefWidth(160);
+        ipField.setStyle("-fx-background-color: #16213e; -fx-text-fill: white; -fx-border-color: #4ecca3; -fx-border-radius: 6; -fx-background-radius: 6;");
+        connectBtn = new Button("Kết nối");
+        styleButton(connectBtn, "#4ecca3", "#6ee7b7");
 
-        HBox ipBox = new HBox(10, new Label("Server IP:"), ipField, connectBtn);
+        Label ipLabel = new Label("Server IP:");
+        ipLabel.setStyle("-fx-text-fill: #e2e8f0; -fx-font-weight: bold;");
+        HBox ipBox = new HBox(10, ipLabel, ipField, connectBtn);
         ipBox.setAlignment(Pos.CENTER);
 
-     // Nhập tên đăng nhập
         nameField = new TextField();
-        nameField.setPrefWidth(150);
+        nameField.setPromptText("Tên đăng nhập");
+        nameField.setPrefWidth(180);
+        nameField.setStyle("-fx-background-color: #16213e; -fx-text-fill: white; -fx-border-color: #334155; -fx-border-radius: 6; -fx-background-radius: 6;");
 
-        // Nhập mật khẩu
         passwordField = new PasswordField();
-        passwordField.setPrefWidth(150);
+        passwordField.setPromptText("Mật khẩu");
+        passwordField.setPrefWidth(180);
+        passwordField.setStyle("-fx-background-color: #16213e; -fx-text-fill: white; -fx-border-color: #334155; -fx-border-radius: 6; -fx-background-radius: 6;");
 
-        // Nút JOIN (đăng nhập)
         loginBtn = new Button("ĐĂNG NHẬP");
         styleButton(loginBtn, "#2196F3", "#42A5F5");
         loginBtn.setDisable(true);
 
-        // Nút ĐĂNG KÝ
         registerBtn = new Button("ĐĂNG KÝ");
         styleButton(registerBtn, "#FF9800", "#FFB74D");
         registerBtn.setDisable(true);
 
         GridPane loginGrid = new GridPane();
-        loginGrid.setHgap(10);
+        loginGrid.setHgap(12);
         loginGrid.setVgap(10);
         loginGrid.setAlignment(Pos.CENTER);
 
-        loginGrid.add(new Label("Tên đăng nhập:"), 0, 0);
+        Label userLbl = new Label("Tên đăng nhập:");
+        userLbl.setStyle("-fx-text-fill: #e2e8f0; -fx-font-weight: bold;");
+        Label passLbl = new Label("Mật khẩu:");
+        passLbl.setStyle("-fx-text-fill: #e2e8f0; -fx-font-weight: bold;");
+        loginGrid.add(userLbl, 0, 0);
         loginGrid.add(nameField, 1, 0);
-        loginGrid.add(new Label("Mật khẩu:"), 0, 1);
+        loginGrid.add(passLbl, 0, 1);
         loginGrid.add(passwordField, 1, 1);
 
-        HBox btnBox = new HBox(15, loginBtn, registerBtn);
+        HBox btnBox = new HBox(14, loginBtn, registerBtn);
         btnBox.setAlignment(Pos.CENTER);
 
-        VBox loginBox = new VBox(15, loginGrid, btnBox);
-        loginBox.setAlignment(Pos.CENTER);
+        VBox loginCard = new VBox(14, loginGrid, btnBox);
+        loginCard.setAlignment(Pos.CENTER);
+        loginCard.setPadding(new Insets(16));
+        loginCard.setStyle("-fx-background-color: rgba(78,204,163,0.08); -fx-border-color: #4ecca3; -fx-border-width: 1.5; -fx-border-radius: 12; -fx-background-radius: 12;");
 
-
-        // TextArea log
         logArea = new TextArea();
         logArea.setEditable(false);
-        logArea.setPrefHeight(200);
-        logArea.setStyle("-fx-control-inner-background: #FFFFFF; -fx-font-family: 'Consolas'; -fx-font-size: 12pt; -fx-background-radius: 10;");
+        logArea.setPrefHeight(130);
+        logArea.setMinHeight(90);
+        logArea.setStyle("-fx-control-inner-background: #0f172a; -fx-text-fill: #e2e8f0; -fx-font-family: 'Consolas'; -fx-font-size: 11pt; -fx-border-color: #334155; -fx-border-radius: 8; -fx-background-radius: 8;");
 
-        // Layout chính
-        VBox root = new VBox(20, title, ipBox, loginBox, logArea);
-        root.setPadding(new Insets(25));
+        VBox root = new VBox(12, title, subtitle, ipBox, loginCard, logArea);
+        root.setPadding(new Insets(18, 22, 18, 22));
         root.setAlignment(Pos.CENTER);
-        root.setStyle("-fx-background-color: #E0F7FA;"); // nền pastel xanh nhạt
+        root.setStyle("-fx-background-color: linear-gradient(to bottom, #0a0e27, #1a1a3e);");
+        VBox.setVgrow(logArea, Priority.ALWAYS);
 
         connectBtn.setOnAction(e -> connectToServer());
+        ipField.setOnAction(e -> connectToServer());
         loginBtn.setOnAction(e -> loginGame());
+        nameField.setOnAction(e -> { if (!loginBtn.isDisabled()) loginGame(); });
+        passwordField.setOnAction(e -> { if (!loginBtn.isDisabled()) loginGame(); });
         registerBtn.setOnAction(e -> showRegisterScreen());
 
-        Scene scene = new Scene(root, 520, 410);
+        return root;
+    }
+
+    @Override
+    public void start(Stage stage) {
+        this.primaryStage = stage;
+        VBox root = buildLoginRoot();
+
+        javafx.geometry.Rectangle2D visualBounds = javafx.stage.Screen.getPrimary().getVisualBounds();
+        double w = Math.min(540, visualBounds.getWidth() * 0.85);
+        double h = Math.min(470, visualBounds.getHeight() * 0.85);
+        Scene scene = new Scene(root, w, h);
         primaryStage.setScene(scene);
         primaryStage.setTitle("Tiến Lên Client");
+        primaryStage.setMinWidth(460);
+        primaryStage.setMinHeight(400);
+        primaryStage.setResizable(true);
+        primaryStage.centerOnScreen();
         primaryStage.show();
     }
 
@@ -174,40 +200,49 @@ public class ClientFX extends Application {
     }
 
     public void showRegisterScreen() {
-        Label title = new Label("📝 Đăng Ký Tài Khoản");
-        title.setFont(Font.font("Segoe UI", 28));
-        title.setTextFill(Color.web("#FF6F61"));
+        Label title = new Label("📝 ĐĂNG KÝ TÀI KHOẢN");
+        title.setFont(Font.font("Segoe UI", javafx.scene.text.FontWeight.BOLD, 24));
+        title.setTextFill(Color.web("#FFD700"));
+
+        String inputStyle = "-fx-background-color: #16213e; -fx-text-fill: white; -fx-border-color: #334155; -fx-border-radius: 6; -fx-background-radius: 6;";
+        String labelStyle = "-fx-text-fill: #e2e8f0; -fx-font-weight: bold;";
 
         TextField regUsername = new TextField();
         regUsername.setPromptText("Tên đăng nhập");
         regUsername.setPrefWidth(200);
+        regUsername.setStyle(inputStyle);
 
         PasswordField regPassword = new PasswordField();
-        regPassword.setPromptText("Mật khẩu");
+        regPassword.setPromptText("Mật khẩu (tối thiểu 6 ký tự)");
         regPassword.setPrefWidth(200);
+        regPassword.setStyle(inputStyle);
 
         PasswordField regPasswordConfirm = new PasswordField();
         regPasswordConfirm.setPromptText("Xác nhận mật khẩu");
         regPasswordConfirm.setPrefWidth(200);
+        regPasswordConfirm.setStyle(inputStyle);
 
         TextArea regStatus = new TextArea();
         regStatus.setEditable(false);
-        regStatus.setPrefHeight(100);
-        regStatus.setStyle("-fx-font-size: 12pt; -fx-control-inner-background: #FFFFFF;");
+        regStatus.setPrefHeight(90);
+        regStatus.setStyle("-fx-font-size: 11pt; -fx-control-inner-background: #0f172a; -fx-text-fill: #e2e8f0; -fx-border-color: #334155; -fx-border-radius: 8;");
 
         GridPane regGrid = new GridPane();
-        regGrid.setHgap(10);
+        regGrid.setHgap(12);
         regGrid.setVgap(10);
         regGrid.setAlignment(Pos.CENTER);
-        regGrid.add(new Label("Tên đăng nhập:"), 0, 0);
+        Label uLbl = new Label("Tên đăng nhập:"); uLbl.setStyle(labelStyle);
+        Label pLbl = new Label("Mật khẩu:"); pLbl.setStyle(labelStyle);
+        Label cLbl = new Label("Xác nhận mật khẩu:"); cLbl.setStyle(labelStyle);
+        regGrid.add(uLbl, 0, 0);
         regGrid.add(regUsername, 1, 0);
-        regGrid.add(new Label("Mật khẩu:"), 0, 1);
+        regGrid.add(pLbl, 0, 1);
         regGrid.add(regPassword, 1, 1);
-        regGrid.add(new Label("Xác nhận mật khẩu:"), 0, 2);
+        regGrid.add(cLbl, 0, 2);
         regGrid.add(regPasswordConfirm, 1, 2);
 
-        Button submitRegBtn = new Button("ĐĂNG KÝ");
-        styleButton(submitRegBtn, "#4CAF50", "#66BB6A");
+        submitRegBtn = new Button("ĐĂNG KÝ");
+        styleButton(submitRegBtn, "#4ecca3", "#6ee7b7");
 
         Button backBtn = new Button("QUAY LẠI");
         styleButton(backBtn, "#F44336", "#EF5350");
@@ -215,12 +250,18 @@ public class ClientFX extends Application {
         HBox btnBox = new HBox(15, submitRegBtn, backBtn);
         btnBox.setAlignment(Pos.CENTER);
 
-        VBox root = new VBox(20, title, regGrid, regStatus, btnBox);
-        root.setPadding(new Insets(25));
-        root.setAlignment(Pos.TOP_CENTER);
-        root.setStyle("-fx-background-color: #E0F7FA;");
+        VBox regCard = new VBox(14, regGrid, btnBox);
+        regCard.setPadding(new Insets(16));
+        regCard.setAlignment(Pos.CENTER);
+        regCard.setStyle("-fx-background-color: rgba(78,204,163,0.08); -fx-border-color: #4ecca3; -fx-border-width: 1.5; -fx-border-radius: 12; -fx-background-radius: 12;");
 
-        submitRegBtn.setOnAction(e -> {
+        VBox root = new VBox(14, title, regCard, regStatus);
+        root.setPadding(new Insets(18, 22, 18, 22));
+        root.setAlignment(Pos.TOP_CENTER);
+        root.setStyle("-fx-background-color: linear-gradient(to bottom, #0a0e27, #1a1a3e);");
+        VBox.setVgrow(regStatus, Priority.ALWAYS);
+
+        Runnable doRegister = () -> {
             String username = regUsername.getText().trim();
             String password = regPassword.getText().trim();
             String passwordConfirm = regPasswordConfirm.getText().trim();
@@ -246,74 +287,31 @@ public class ClientFX extends Application {
             String hashedPassword = PasswordUtil.hashSHA256(password);
             Message msg = new Message(Protocol.REGISTER, "user=" + username + "&pass=" + hashedPassword);
             out.println(Protocol.encode(msg));
-        });
+        };
+
+        submitRegBtn.setOnAction(e -> doRegister.run());
+        regUsername.setOnAction(e -> doRegister.run());
+        regPassword.setOnAction(e -> doRegister.run());
+        regPasswordConfirm.setOnAction(e -> doRegister.run());
 
         backBtn.setOnAction(e -> showLoginScreen());
 
-        Scene scene = new Scene(root, 600, 500);
+        javafx.geometry.Rectangle2D visualBounds = javafx.stage.Screen.getPrimary().getVisualBounds();
+        double w = Math.min(540, visualBounds.getWidth() * 0.85);
+        double h = Math.min(470, visualBounds.getHeight() * 0.85);
+        Scene scene = new Scene(root, w, h);
         primaryStage.setScene(scene);
+        primaryStage.centerOnScreen();
     }
 
     public void showLoginScreen() {
-        // Tạo lại giao diện login
-        Label title = new Label("Tiến Lên Miền Nam");
-        title.setFont(Font.font("Segoe UI", 30));
-        title.setTextFill(Color.web("#FF6F61"));
-
-        ipField = new TextField("localhost");
-        ipField.setPrefWidth(150);
-        connectBtn = new Button("Connect");
-        styleButton(connectBtn, "#4CAF50", "#66BB6A");
-
-        HBox ipBox = new HBox(10, new Label("Server IP:"), ipField, connectBtn);
-        ipBox.setAlignment(Pos.CENTER);
-
-        nameField = new TextField();
-        nameField.setPrefWidth(150);
-
-        passwordField = new PasswordField();
-        passwordField.setPrefWidth(150);
-
-        loginBtn = new Button("ĐĂNG NHẬP");
-        styleButton(loginBtn, "#2196F3", "#42A5F5");
-        loginBtn.setDisable(true);
-
-        registerBtn = new Button("ĐĂNG KÝ");
-        styleButton(registerBtn, "#FF9800", "#FFB74D");
-        registerBtn.setDisable(true);
-
-        GridPane loginGrid = new GridPane();
-        loginGrid.setHgap(10);
-        loginGrid.setVgap(10);
-        loginGrid.setAlignment(Pos.CENTER);
-
-        loginGrid.add(new Label("Tên đăng nhập:"), 0, 0);
-        loginGrid.add(nameField, 1, 0);
-        loginGrid.add(new Label("Mật khẩu:"), 0, 1);
-        loginGrid.add(passwordField, 1, 1);
-
-        HBox btnBox = new HBox(15, loginBtn, registerBtn);
-        btnBox.setAlignment(Pos.CENTER);
-
-        VBox loginBox = new VBox(15, loginGrid, btnBox);
-        loginBox.setAlignment(Pos.CENTER);
-
-        logArea = new TextArea();
-        logArea.setEditable(false);
-        logArea.setPrefHeight(200);
-        logArea.setStyle("-fx-control-inner-background: #FFFFFF; -fx-font-family: 'Consolas'; -fx-font-size: 12pt; -fx-background-radius: 10;");
-
-        VBox root = new VBox(20, title, ipBox, loginBox, logArea);
-        root.setPadding(new Insets(25));
-        root.setAlignment(Pos.CENTER);
-        root.setStyle("-fx-background-color: #E0F7FA;");
-
-        connectBtn.setOnAction(e -> connectToServer());
-        loginBtn.setOnAction(e -> loginGame());
-        registerBtn.setOnAction(e -> showRegisterScreen());
-
-        Scene scene = new Scene(root, 600, 500);
+        VBox root = buildLoginRoot();
+        javafx.geometry.Rectangle2D visualBounds = javafx.stage.Screen.getPrimary().getVisualBounds();
+        double w = Math.min(540, visualBounds.getWidth() * 0.85);
+        double h = Math.min(470, visualBounds.getHeight() * 0.85);
+        Scene scene = new Scene(root, w, h);
         primaryStage.setScene(scene);
+        primaryStage.centerOnScreen();
         log("▶ Quay lại màn hình đăng nhập");
     }
 
@@ -334,15 +332,17 @@ public class ClientFX extends Application {
 
     // Re-enable register controls khi đăng ký thất bại
     public void enableRegisterControls() {
-        // Gọi lại showRegisterScreen để refresh (hoặc có thể implement cách khác)
-        // Bây giờ chỉ cần để trống vì showRegisterScreen sẽ được gọi lại nếu cần
+        if (submitRegBtn != null) {
+            submitRegBtn.setDisable(false);
+        }
     }
 
   
 // Hàm hiển thị giao diện chọn bàn chơi
     private void showTableSelection() {
         tableSelectionUI = new TableSelectionUI(out, in, myname);
-        VBox tableSelectionPane = tableSelectionUI.createRootPane();
+        TableSelectionUI tableSelectionUI = this.tableSelectionUI;
+        javafx.scene.layout.BorderPane tableSelectionPane = tableSelectionUI.createRootPane();
         
         // Cập nhật listener để xử lý TABLE_SELECTION
         universalListener.setTableSelectionUI(tableSelectionUI, myname);
@@ -353,12 +353,21 @@ public class ClientFX extends Application {
         });
         
         tableSelectionUI.setOnQuit(() -> {
-            // Quay lại màn hình login
+            // Đóng socket cũ để Server dọn phiên online, rồi quay lại màn hình login
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException ignored) {}
             showLoginScreen();
         });
         
-        Scene tableScene = new Scene(tableSelectionPane, 1200, 850);
+        javafx.geometry.Rectangle2D visualBounds = javafx.stage.Screen.getPrimary().getVisualBounds();
+        double tableWidth = Math.min(1150, visualBounds.getWidth() * 0.88);
+        double tableHeight = Math.min(740, visualBounds.getHeight() * 0.88);
+        Scene tableScene = new Scene(tableSelectionPane, tableWidth, tableHeight);
         primaryStage.setScene(tableScene);
+        primaryStage.centerOnScreen();
         log("▶ Hiển thị giao diện chọn bàn chơi");
         
         // Yêu cầu danh sách bàn sau khi UI đã sẵn sàng
@@ -385,12 +394,22 @@ public class ClientFX extends Application {
             Platform.runLater(() -> showTableSelection());
         });
 
-        Scene gameScene = new Scene(gameTable.createRootPane(), 1600, 950);
+        javafx.scene.layout.BorderPane root = gameTable.createRootPane();
+        // Đăng ký gameUI ngay sau khi các thành phần UI đã được khởi tạo, trước khi setScene
+        universalListener.setGameUI(gameTable, myname);
+
+        javafx.geometry.Rectangle2D visualBounds = javafx.stage.Screen.getPrimary().getVisualBounds();
+        double gameWidth = Math.min(1360, visualBounds.getWidth() * 0.92);
+        double gameHeight = Math.min(780, visualBounds.getHeight() * 0.90);
+        Scene gameScene = new Scene(root, gameWidth, gameHeight);
         gameScene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         primaryStage.setScene(gameScene);
-        
-        // Cập nhật listener để xử lý GAME messages
-        universalListener.setGameUI(gameTable, myname);
+        primaryStage.centerOnScreen();
+
+        // Chủ động yêu cầu danh sách người chơi hiện tại khi UI phòng chơi đã sẵn sàng
+        if (out != null) {
+            out.println(Protocol.encode(new Message("GET_PLAYER_LIST", "")));
+        }
     }
 
     public void returnToTableSelection() {

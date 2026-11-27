@@ -1,0 +1,11 @@
+# Build & IDE
+target/
+bin/
+.vscode/
+.idea/
+*.class
+*.log
+*.wav
+
+# Local DB configuration
+src/main/resources/db.properties
