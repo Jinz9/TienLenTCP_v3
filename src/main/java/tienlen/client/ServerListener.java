@@ -171,6 +171,28 @@ public class ServerListener implements Runnable {
                             });
                             continue;
                         }
+                        case Protocol.PLAYER_STATS: {
+                            String data = ms.getData();
+                            String[] parts = data.split("\\|", 2);
+                            if (parts.length == 2) {
+                                String targetUser = parts[0];
+                                String statsCsv = parts[1];
+                                Platform.runLater(() -> tableSelectionUI.updatePlayerStats(targetUser, statsCsv));
+                            }
+                            continue;
+                        }
+                        case Protocol.INSUFFICIENT_BALANCE:
+                        case "ERROR": {
+                            String errorMsg = ms.getData();
+                            Platform.runLater(() -> {
+                                Alert alert = new Alert(Alert.AlertType.ERROR);
+                                alert.setTitle("Thông báo lỗi");
+                                alert.setHeaderText(null);
+                                alert.setContentText("❌ " + errorMsg);
+                                alert.showAndWait();
+                            });
+                            continue;
+                        }
                     }
                 }
 
@@ -255,6 +277,8 @@ public class ServerListener implements Runnable {
                                     alert.showAndWait();
                                 }
                                 gameTable.disableButton();
+                                gameTable.stopTurnCountdown();
+                                gameTable.clearTable();
                             });
                             break;
                         }
@@ -268,6 +292,8 @@ public class ServerListener implements Runnable {
                                 alert.showAndWait();
                                 gameTable.showNewGameButton();
                                 gameTable.disableButton();
+                                gameTable.stopTurnCountdown();
+                                gameTable.clearTable();
                             });
                             break;
                         }
@@ -292,8 +318,15 @@ public class ServerListener implements Runnable {
                                     try {
                                         Media media = new Media(f.toURI().toString());
                                         MediaPlayer player = new MediaPlayer(media);
+                                        Runnable cleanup = () -> {
+                                            try { player.dispose(); } catch (Exception ignored) {}
+                                            try { Files.deleteIfExists(tmp); } catch (Exception ignored) {}
+                                        };
+                                        player.setOnEndOfMedia(cleanup);
+                                        player.setOnError(cleanup);
                                         player.play();
                                     } catch (Exception e) {
+                                        try { Files.deleteIfExists(tmp); } catch (Exception ignored) {}
                                         e.printStackTrace();
                                     }
                                 });
@@ -303,7 +336,40 @@ public class ServerListener implements Runnable {
                             break;
                         }
                         case "NOTIFICATION": {
-                            System.out.println(ms.getData());
+                            String notice = ms.getData();
+                            System.out.println(notice);
+                            Platform.runLater(() -> {
+                                if (notice.startsWith("ERROR:")) {
+                                    gameTable.onMoveRejected(notice.substring(6));
+                                } else {
+                                    gameTable.getChatArea().appendText("ℹ " + notice + "\n");
+                                }
+                            });
+                            break;
+                        }
+                        case Protocol.PLAYER_STATS: {
+                            String data = ms.getData();
+                            String[] parts = data.split("\\|", 2);
+                            if (parts.length == 2) {
+                                String targetUser = parts[0];
+                                String statsCsv = parts[1];
+                                Platform.runLater(() -> tableSelectionUI.updatePlayerStats(targetUser, statsCsv));
+                            }
+                            continue;
+                        }
+                        case Protocol.INSUFFICIENT_BALANCE:
+                        case "ERROR": {
+                            String errorMsg = ms.getData();
+                            Platform.runLater(() -> {
+                                Alert alert = new Alert(Alert.AlertType.ERROR);
+                                alert.setTitle("Không thể thực hiện");
+                                alert.setHeaderText(null);
+                                alert.setContentText("❌ " + errorMsg);
+                                alert.showAndWait();
+                                if (clientFX != null) {
+                                    clientFX.returnToTableSelection();
+                                }
+                            });
                             break;
                         }
                         case "KICKED": {

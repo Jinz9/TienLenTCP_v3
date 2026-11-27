@@ -13,46 +13,37 @@
     -fx-max-width: 72px;
     -fx-max-height: 105px;
     
-    -fx-background-color: linear-gradient(to bottom, #ffffff, #f5f5f5);
-    -fx-border-color: #1976d2;
-    -fx-border-width: 2;
+    -fx-background-color: linear-gradient(to bottom, #ffffff, #f8fafc);
+    -fx-border-color: #cbd5e1;
+    -fx-border-width: 1.5;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     
-    -fx-font-size: 13px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #1a1a1a;
-    -fx-text-alignment: center;
-    -fx-content-display: center;
     -fx-alignment: center;
-    -fx-padding: 5 2 5 2;
+    -fx-content-display: graphic-only;
+    -fx-padding: 0;
     
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 8, 0, 2, 3);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 6, 0, 1, 2);
     -fx-cursor: hand;
 }
 
 .card:hover {
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 10, 0, 3, 5);
+    -fx-border-color: #94a3b8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.55), 10, 0, 2, 4);
 }
 
-.card:selected {
-    -fx-border-color: linear-gradient(to right, #ffc107, #ff9800);
-    -fx-border-width: 3;
-    -fx-padding: 5 2 5 2;
-    -fx-effect: dropshadow(gaussian, rgba(255,193,7,0.8), 12, 0, 0, 6);
-    -fx-text-fill: #ff6f00;
+.card:selected, .card:selected:focused {
+    -fx-background-color: linear-gradient(to bottom, #fffbeb, #fef3c7);
+    -fx-border-color: #f59e0b;
+    -fx-border-width: 2.5;
+    -fx-padding: 0;
+    -fx-effect: dropshadow(gaussian, rgba(245,158,11,0.75), 12, 0, 0, 4);
 }
 
 .card:focused {
-    -fx-border-color: #1976d2;
-    -fx-border-width: 2;
-    -fx-padding: 5 2 5 2;
-}
-    -fx-border-color: #1976d2;
-    -fx-border-width: 2;
-    -fx-padding: 8 2 2 2;
-}
-    -fx-translate-y: 0;
+    -fx-border-color: #cbd5e1;
+    -fx-border-width: 1.5;
+    -fx-padding: 0;
 }
 
 /* ========== PLAYER HAND ========== */
@@ -109,19 +100,15 @@
     -fx-max-height: 95px;
     -fx-pref-height: 95px;
     
-    -fx-background-color: linear-gradient(to bottom, #ffffff, #f0f0f0);
-    -fx-border-color: #27ae60;
+    -fx-background-color: linear-gradient(to bottom, #ffffff, #f8fafc);
+    -fx-border-color: #cbd5e1;
     -fx-border-width: 1.5;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
     
-    -fx-font-size: 12px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #1a1a1a;
-    -fx-text-alignment: center;
     -fx-alignment: center;
-    -fx-content-display: center;
-    -fx-padding: 5;
+    -fx-content-display: graphic-only;
+    -fx-padding: 0;
     
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 1, 2);
 }
@@ -130,9 +117,9 @@
 .control-btn {
     -fx-background-color: linear-gradient(to bottom, #1976d2, #1565c0);
     -fx-text-fill: white;
-    -fx-font-size: 14px;
+    -fx-font-size: 13px;
     -fx-font-weight: bold;
-    -fx-padding: 10 28 10 28;
+    -fx-padding: 7 22 7 22;
     -fx-background-radius: 6;
     -fx-border-radius: 6;
     -fx-border-color: transparent;
@@ -203,11 +190,11 @@
 }
 
 .chat-area {
-    -fx-control-inner-background: #263238;
-    -fx-text-fill: #e0e0e0;
+    -fx-control-inner-background: #ffffff;
+    -fx-text-fill: #1a1a1a;
     -fx-font-family: 'Consolas', 'Courier New', monospace;
-    -fx-font-size: 11px;
-    -fx-padding: 8;
+    -fx-font-size: 12px;
+    -fx-padding: 6;
     -fx-focus-color: #1976d2;
 }
 
