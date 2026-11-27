@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -12,10 +13,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ServerBackend {
     private static final int PORT = 12345;
     private final List<GameSession> gameSessions = new CopyOnWriteArrayList<>();
-    private final Map<String, PlayerInfo> onlinePlayers = Collections.synchronizedMap(new HashMap<>());
-    private final Map<String, ClientHandler> clientHandlers = Collections.synchronizedMap(new HashMap<>());
+    private final Map<String, PlayerInfo> onlinePlayers = new ConcurrentHashMap<>();
+    private final Map<String, ClientHandler> clientHandlers = new ConcurrentHashMap<>();
     private ServerSocket serverSocket;
     private boolean isRunning = false;
+
+    private String normalizeUsername(String username) {
+        return username == null ? "" : username.trim().toLowerCase();
+    }
 
     public void start(ServerUI ui) throws IOException {
         serverSocket = new ServerSocket(PORT);
@@ -32,6 +37,7 @@ public class ServerBackend {
             long betAmount = (long) sessionData.get("bet_amount");
             
             GameSession session = new GameSession(sessionId, displayName, betAmount);
+            session.setBackend(this);
             gameSessions.add(session);
             ui.appendLog("📋 Loaded session from DB: " + displayName + " (ID: " + sessionId + ")");
         }
@@ -56,19 +62,46 @@ public class ServerBackend {
         }
     }
 
-    public void registerPlayer(String username, String ipAddress, ClientHandler handler) {
-        PlayerInfo player = new PlayerInfo(username, ipAddress);
-        onlinePlayers.put(username, player);
-        clientHandlers.put(username, handler);
+    public boolean registerPlayer(String username, String ipAddress, ClientHandler handler) {
+        String key = normalizeUsername(username);
+        if (key.isEmpty() || handler == null) {
+            return false;
+        }
+        ClientHandler existing = clientHandlers.putIfAbsent(key, handler);
+        if (existing != null) {
+            return false;
+        }
+        PlayerInfo player = new PlayerInfo(username.trim(), ipAddress);
+        onlinePlayers.put(key, player);
+        return true;
+    }
+
+    public boolean isPlayerOnline(String username) {
+        String key = normalizeUsername(username);
+        return !key.isEmpty() && clientHandlers.containsKey(key);
+    }
+
+    public void unregisterPlayer(String username, ClientHandler handler) {
+        String key = normalizeUsername(username);
+        if (key.isEmpty()) {
+            return;
+        }
+        if (handler == null) {
+            clientHandlers.remove(key);
+            onlinePlayers.remove(key);
+            return;
+        }
+        if (clientHandlers.remove(key, handler)) {
+            onlinePlayers.remove(key);
+        }
     }
 
     public void unregisterPlayer(String username) {
-        onlinePlayers.remove(username);
-        clientHandlers.remove(username);
+        unregisterPlayer(username, null);
     }
 
     public void registerPlayerInSession(String username, String sessionId) {
-        PlayerInfo player = onlinePlayers.get(username);
+        PlayerInfo player = onlinePlayers.get(normalizeUsername(username));
         if (player != null) {
             player.setStatus("IN_GAME");
             player.setCurrentSession(sessionId);
@@ -76,7 +109,7 @@ public class ServerBackend {
     }
 
     public void unregisterPlayerFromSession(String username) {
-        PlayerInfo player = onlinePlayers.get(username);
+        PlayerInfo player = onlinePlayers.get(normalizeUsername(username));
         if (player != null) {
             player.setStatus("IDLE");
             player.setCurrentSession(null);
@@ -94,7 +127,7 @@ public class ServerBackend {
         
         // Add offline players (users not in onlinePlayers)
         for (String username : allUsers) {
-            if (!onlinePlayers.containsKey(username)) {
+            if (!onlinePlayers.containsKey(normalizeUsername(username))) {
                 PlayerInfo offlinePlayer = new PlayerInfo(username, "N/A");
                 offlinePlayer.setStatus("OFFLINE");
                 allPlayers.add(offlinePlayer);
@@ -112,8 +145,30 @@ public class ServerBackend {
         return sessionInfos;
     }
 
+    public void broadcastSessionListToLobby() {
+        StringBuilder sb = new StringBuilder();
+        List<SessionInfo> sessions = getAllSessions();
+        for (int i = 0; i < sessions.size(); i++) {
+            SessionInfo s = sessions.get(i);
+            if (i > 0) sb.append(";");
+            sb.append(s.getSessionId()).append(",")
+              .append(s.getPlayerCount()).append(",")
+              .append(s.getStatus()).append(",")
+              .append(s.getDisplayName()).append(",")
+              .append(s.getBetAmount());
+        }
+        tienlen.model.Message msg = new tienlen.model.Message(tienlen.utils.Protocol.SESSION_LIST, sb.toString());
+        String encoded = tienlen.utils.Protocol.encode(msg);
+        for (ClientHandler handler : clientHandlers.values()) {
+            if (handler != null && handler.isInLobby()) {
+                handler.sendMessage(encoded);
+            }
+        }
+    }
+
     public GameSession createNewSession() {
         GameSession session = new GameSession();
+        session.setBackend(this);
         gameSessions.add(session);
         return session;
     }
@@ -121,6 +176,7 @@ public class ServerBackend {
     public GameSession createNewSession(String displayName, long betAmount) {
         GameSession session = new GameSession(displayName);
         session.setBetAmount(betAmount);
+        session.setBackend(this);
         gameSessions.add(session);
         return session;
     }
@@ -143,10 +199,11 @@ public class ServerBackend {
     }
 
     public void kickPlayer(String username) {
-        PlayerInfo player = onlinePlayers.get(username);
+        String key = normalizeUsername(username);
+        PlayerInfo player = onlinePlayers.get(key);
         if (player != null) {
             // Gửi message kick đến player
-            ClientHandler handler = clientHandlers.get(username);
+            ClientHandler handler = clientHandlers.get(key);
             if (handler != null) {
                 // Gửi thông báo KICKED trước khi đóng connection
                 tienlen.model.Message msg = new tienlen.model.Message("KICKED", "Bạn đã bị loại khỏi server bởi admin");
@@ -154,7 +211,7 @@ public class ServerBackend {
                 // Đóng connection
                 handler.closeConnection();
             }
-            unregisterPlayer(username);
+            unregisterPlayer(username, handler);
         }
     }
 
@@ -184,7 +241,7 @@ public class ServerBackend {
             for (tienlen.model.Player player : new ArrayList<>(session.getPlayers())) {
                 String playerName = player.getName();
                 // send SESSION_CLOSED message to client if connected
-                ClientHandler handler = clientHandlers.get(playerName);
+                ClientHandler handler = clientHandlers.get(normalizeUsername(playerName));
                 if (handler != null) {
                     tienlen.model.Message msg = new tienlen.model.Message(tienlen.utils.Protocol.SESSION_CLOSED, sessionId + "|Closed by server");
                     handler.sendMessage(tienlen.utils.Protocol.encode(msg));
@@ -193,6 +250,7 @@ public class ServerBackend {
             }
             // remove session from list
             gameSessions.remove(session);
+            broadcastSessionListToLobby();
         }
     }
 

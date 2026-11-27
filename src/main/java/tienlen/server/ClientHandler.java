@@ -54,10 +54,14 @@ public class ClientHandler implements Runnable {
         return player;
     }
 
+    public boolean isInLobby() {
+        return currentUsername != null && gameSession == null;
+    }
+
     public void closeConnection() {
         try {
             if (currentUsername != null && backend != null) {
-                backend.unregisterPlayer(currentUsername);
+                backend.unregisterPlayer(currentUsername, this);
             }
             if (socket != null && !socket.isClosed()) {
                 socket.close();
@@ -127,12 +131,29 @@ public class ClientHandler implements Runnable {
                             try { bet = Long.parseLong(map.get("bet")); } catch (NumberFormatException ignored) {}
                         }
                     }
+                    if (bet <= 0) {
+                        sendMessage(Protocol.encode(new Message("ERROR", "Mức cược phải lớn hơn 0!")));
+                        break;
+                    }
+                    long currentBalance = currentUsername != null ? UserManager.getInstance().getBalance(currentUsername) : 0;
+                    if (currentBalance < bet) {
+                        sendMessage(Protocol.encode(new Message(
+                                Protocol.INSUFFICIENT_BALANCE,
+                                "Số dư của bạn (" + String.format("%,d", currentBalance) + " VND) không đủ để tạo bàn cược "
+                                        + String.format("%,d", bet) + " VND!"
+                        )));
+                        break;
+                    }
                     if (server != null) {
                         server.createNewSession(name, bet);
+                        handleGetSessions();
                     } else if (backend != null) {
                         backend.createNewSession(name, bet);
+                        handleGetSessions();
+                        backend.broadcastSessionListToLobby();
+                    } else {
+                        handleGetSessions();
                     }
-                    handleGetSessions();
                     break;
             	}
 				case "JOIN": {
@@ -175,11 +196,36 @@ public class ClientHandler implements Runnable {
                 case "LEAVE_SESSION": {
                     if (gameSession != null && player != null) {
                         gameSession.removePlayer(player);
-                        gameSession.broadcastPlayerList();
+                        if (!gameSession.getPlayers().isEmpty()) {
+                            gameSession.broadcastPlayerList();
+                        }
                         if (backend != null && currentUsername != null) backend.unregisterPlayerFromSession(currentUsername);
                         this.gameSession = null;
-                        // send updated sessions list to client
+                        this.player = null;
+                        // send updated sessions list to client and other lobby clients
                         handleGetSessions();
+                        if (backend != null) {
+                            backend.broadcastSessionListToLobby();
+                        }
+                    }
+                    break;
+                }
+                case "GET_PLAYER_LIST": {
+                    if (gameSession != null) {
+                        gameSession.broadcastPlayerList();
+                    }
+                    break;
+                }
+                case Protocol.GET_PLAYER_STATS: {
+                    String targetUser = (ms.getData() != null && !ms.getData().trim().isEmpty())
+                            ? ms.getData().trim()
+                            : currentUsername;
+                    if (targetUser != null && !targetUser.isEmpty()) {
+                        String[] stats = UserManager.getInstance().getPlayerStatistics(targetUser);
+                        sendMessage(Protocol.encode(new Message(
+                                Protocol.PLAYER_STATS,
+                                targetUser + "|" + String.join(",", stats)
+                        )));
                     }
                     break;
                 }
@@ -192,17 +238,25 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.out.println("⚠ Kết nối không thành công với " + currentUsername + ": " + e.getMessage());
         } finally {
-            // Xóa player session khỏi database
+            // Xóa player session khỏi database và dọn trạng thái online an toàn
             if (currentUsername != null) {
-                UserManager.getInstance().deletePlayerSession(currentUsername);
+                if (backend != null) {
+                    backend.unregisterPlayer(currentUsername, this);
+                }
+                if (backend == null || !backend.isPlayerOnline(currentUsername)) {
+                    UserManager.getInstance().deletePlayerSession(currentUsername);
+                }
             }
             
             // Luôn remove khi client thoát
             if (gameSession != null && player != null) {
                 gameSession.removePlayer(player);
-                gameSession.broadcastPlayerList();
-                if (gameSession.getPlayers().size() < 2) {
-                	gameSession.endGame("END");
+                if (!gameSession.getPlayers().isEmpty()) {
+                    gameSession.broadcastPlayerList();
+                }
+                this.gameSession = null;
+                if (backend != null) {
+                    backend.broadcastSessionListToLobby();
                 }
             }
             try {
@@ -272,29 +326,23 @@ public class ClientHandler implements Runnable {
             return;
         }
 
+        // Lớp bảo vệ thứ 2: kiểm tra trùng người chơi trong bàn
+        Player candidate = new Player(currentUsername);
+        if (!session.addPlayer(candidate, this)) {
+            return;
+        }
+
         this.gameSession = session;
-        
-        // Tự động JOIN vào session đã chọn
-        player = new Player(currentUsername);
-        gameSession.addPlayer(player, this);
+        this.player = candidate;
         
         // Cập nhật trạng thái player trong backend nếu có
         if (backend != null) {
             backend.registerPlayerInSession(currentUsername, sessionId);
+            backend.broadcastSessionListToLobby();
         }
         
         Message confirmMsg = new Message("SESSION_SELECTED", sessionId);
         sendMessage(Protocol.encode(confirmMsg));
-        
-        // Gửi lại PLAYER_LIST sau một chút delay để đảm bảo client đã sẵn sàng nhận
-        new Thread(() -> {
-            try {
-                Thread.sleep(200);  // Delay 200ms
-                gameSession.broadcastPlayerList();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
         
         System.out.println("Player " + currentUsername + " joined session " + sessionId);
     }
@@ -341,23 +389,29 @@ public class ClientHandler implements Runnable {
         
         // Đăng nhập
         if (userManager.loginUser(username, password)) {
-            this.currentUsername = username;
-            
-            // Tạo player session trong database
+            String trimmedUsername = username.trim();
             String clientIp = socket.getInetAddress().getHostAddress();
-            userManager.createPlayerSession(username, clientIp);
-            
-            // Đăng ký player trong backend nếu có
-            if (backend != null) {
-                backend.registerPlayer(username, clientIp, this);
+
+            // Chống đăng nhập trùng nguyên tử trong ServerBackend
+            if (backend != null && !backend.registerPlayer(trimmedUsername, clientIp, this)) {
+                sendMessage(Protocol.encode(new Message(
+                        Protocol.LOGIN_FAILED,
+                        "Tài khoản này đang được đăng nhập ở thiết bị khác!"
+                )));
+                return;
             }
-            
-            sendMessage(Protocol.encode(new Message(Protocol.LOGIN_SUCCESS, username)));
-            
+
+            this.currentUsername = trimmedUsername;
+
+            // Tạo player session trong database
+            userManager.createPlayerSession(trimmedUsername, clientIp);
+
+            sendMessage(Protocol.encode(new Message(Protocol.LOGIN_SUCCESS, trimmedUsername)));
+
             // Gửi balance cho client
-            long balance = userManager.getBalance(username);
+            long balance = userManager.getBalance(trimmedUsername);
             sendMessage(Protocol.encode(new Message(Protocol.BALANCE, String.valueOf(balance))));
-            
+
             // Gửi danh sách bàn cho client
             handleGetSessions();
         } else {

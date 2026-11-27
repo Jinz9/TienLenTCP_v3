@@ -49,17 +49,19 @@ public class ServerMain {
     }
 
     // Lấy thông tin bàn chơi (tên session, số người, trạng thái)
-        public synchronized String getSessionsInfo() {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < sessions.size(); i++) {
-                GameSession session = sessions.get(i);
-                int players = session.getPlayers().size();
-                String status = session.isGameRunning() ? "RUNNING" : "WAITING";
-                if (i > 0) sb.append(";");
-                            sb.append(session.getSessionId()).append(",")
-                                .append(players).append(",").append(status).append(",").append(session.getDisplayName()).append(",").append(session.getBetAmount());
-            }
-            return sb.toString();
+    public synchronized String getSessionsInfo() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < sessions.size(); i++) {
+            GameSession session = sessions.get(i);
+            int players = session.getPlayers().size();
+            String status = session.isGameRunning() ? "RUNNING" : "WAITING";
+            if (i > 0)
+                sb.append(";");
+            sb.append(session.getSessionId()).append(",")
+                    .append(players).append(",").append(status).append(",").append(session.getDisplayName()).append(",")
+                    .append(session.getBetAmount());
+        }
+        return sb.toString();
     }
 
     // Tạo bàn chơi mới
@@ -75,7 +77,8 @@ public class ServerMain {
         GameSession newSession = new GameSession(displayName);
         newSession.setBetAmount(betAmount);
         sessions.add(newSession);
-        System.out.println("Created new session: " + newSession.getSessionId() + " (" + displayName + ", bet=" + betAmount + ")");
+        System.out.println(
+                "Created new session: " + newSession.getSessionId() + " (" + displayName + ", bet=" + betAmount + ")");
         return newSession;
     }
 
