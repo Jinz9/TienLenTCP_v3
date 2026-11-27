@@ -2,13 +2,43 @@ package tienlen.server;
 
 import tienlen.utils.PasswordUtil;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.*;
+import java.util.Properties;
 
 public class UserManager {
-    private static final String DB_URL = "jdbc:mysql://localhost:3307/tienlencards";
-    private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "";  // Thay đổi password của bạn nếu cần
+    private static final String DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/tienlencards";
+    private static final String DEFAULT_DB_USER = "root";
+    private static final String DEFAULT_DB_PASSWORD = "";
+
+    private static final String DB_URL;
+    private static final String DB_USER;
+    private static final String DB_PASSWORD;
     private static UserManager instance;
+
+    static {
+        Properties props = new Properties();
+        boolean loaded = false;
+        try (InputStream fis = new FileInputStream("src/main/resources/db.properties")) {
+            props.load(fis);
+            loaded = true;
+        } catch (IOException ignored) {
+            try (InputStream cp = UserManager.class.getResourceAsStream("/db.properties")) {
+                if (cp != null) {
+                    props.load(cp);
+                    loaded = true;
+                }
+            } catch (IOException ignored2) {}
+        }
+        if (!loaded) {
+            System.out.println("ℹ️ db.properties not found, using default MySQL config (localhost:3306)");
+        }
+        DB_URL = props.getProperty("db.url", DEFAULT_DB_URL).trim();
+        DB_USER = props.getProperty("db.user", DEFAULT_DB_USER).trim();
+        DB_PASSWORD = props.getProperty("db.password", DEFAULT_DB_PASSWORD);
+    }
 
     private UserManager() {
         initDatabase();
@@ -21,11 +51,17 @@ public class UserManager {
         return instance;
     }
 
+    private String getServerBaseUrl() {
+        int schemeIdx = DB_URL.indexOf("://");
+        int slashIdx = DB_URL.indexOf('/', schemeIdx >= 0 ? schemeIdx + 3 : 0);
+        return slashIdx > 0 ? DB_URL.substring(0, slashIdx) : DB_URL;
+    }
+
     // Khởi tạo database nếu chưa có
     private void initDatabase() {
         try {
             // Tạo database nếu chưa tồn tại
-            String createDbUrl = "jdbc:mysql://localhost:3307";
+            String createDbUrl = getServerBaseUrl();
             try (Connection conn = DriverManager.getConnection(createDbUrl, DB_USER, DB_PASSWORD)) {
                 String createDbSql = "CREATE DATABASE IF NOT EXISTS tienlencards CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
                 try (Statement stmt = conn.createStatement()) {
@@ -381,8 +417,8 @@ public class UserManager {
     // Lấy lịch sử trò chơi của một người chơi
     public synchronized java.util.List<String[]> getPlayerGameHistory(String playerName, int limit) {
         java.util.List<String[]> history = new java.util.ArrayList<>();
-        String sql = "SELECT game_id, game_result, bet_amount, amount_won, played_at FROM game_history " +
-                     "WHERE player_name = ? ORDER BY played_at DESC LIMIT ?";
+        String sql = "SELECT session_id, result, bet_amount, amount_won, created_at FROM game_records " +
+                     "WHERE player_name = ? ORDER BY created_at DESC LIMIT ?";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -393,11 +429,11 @@ public class UserManager {
             
             while (rs.next()) {
                 String[] record = {
-                    rs.getString("game_id"),
-                    rs.getString("game_result"),
+                    rs.getString("session_id"),
+                    rs.getString("result"),
                     String.valueOf(rs.getLong("bet_amount")),
                     String.valueOf(rs.getLong("amount_won")),
-                    rs.getString("played_at")
+                    rs.getString("created_at")
                 };
                 history.add(record);
             }
@@ -411,11 +447,11 @@ public class UserManager {
     public synchronized String[] getPlayerStatistics(String playerName) {
         String sql = "SELECT " +
                      "COUNT(*) as total_games, " +
-                     "SUM(CASE WHEN game_result = 'WIN' THEN 1 ELSE 0 END) as wins, " +
-                     "SUM(CASE WHEN game_result = 'LOSE' THEN 1 ELSE 0 END) as losses, " +
+                     "SUM(CASE WHEN result = 'WIN' THEN 1 ELSE 0 END) as wins, " +
+                     "SUM(CASE WHEN result = 'LOSE' THEN 1 ELSE 0 END) as losses, " +
                      "SUM(amount_won) as total_won, " +
                      "SUM(bet_amount) as total_bet " +
-                     "FROM game_history WHERE player_name = ?";
+                     "FROM game_records WHERE player_name = ?";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -725,7 +761,7 @@ public class UserManager {
 
     // Lưu player session (login/logout tracking)
     public synchronized void createPlayerSession(int userId, String ipAddress, String deviceInfo) {
-        String sql = "INSERT INTO player_sessions (player_id, ip_address, device_info, status, login_at, last_activity) " +
+        String sql = "INSERT INTO player_sessions (user_id, ip_address, device_info, status, login_at, last_activity) " +
                      "VALUES (?, ?, ?, 'ONLINE', NOW(), NOW())";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
@@ -771,7 +807,7 @@ public class UserManager {
     // Cập nhật server statistics hàng ngày
     public synchronized void updateServerStats() {
         String sql = "INSERT INTO server_statistics (stat_date, total_players, total_games, average_bet) " +
-                     "SELECT CURDATE(), COUNT(DISTINCT player_id), COUNT(*), AVG(bet_amount) FROM game_records WHERE DATE(created_at) = CURDATE() " +
+                     "SELECT CURDATE(), COUNT(DISTINCT player_name), COUNT(*), AVG(bet_amount) FROM game_records WHERE DATE(created_at) = CURDATE() " +
                      "ON DUPLICATE KEY UPDATE " +
                      "total_players = VALUES(total_players), " +
                      "total_games = VALUES(total_games), " +
@@ -1082,7 +1118,7 @@ public class UserManager {
     
     // Tạo session khi player login
     public synchronized void createPlayerSession(String username, String ipAddress) {
-        String sql = "INSERT INTO player_sessions (player_id, ip_address, status, login_at, last_activity) " +
+        String sql = "INSERT INTO player_sessions (user_id, ip_address, status, login_at, last_activity) " +
                      "SELECT id, ?, 'ONLINE', NOW(), NOW() FROM users WHERE username = ?";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
@@ -1100,7 +1136,7 @@ public class UserManager {
     // Cập nhật last_activity khi player hoạt động
     public synchronized void updatePlayerActivity(String username) {
         String sql = "UPDATE player_sessions SET last_activity = NOW() " +
-                     "WHERE player_id = (SELECT id FROM users WHERE username = ?)";
+                     "WHERE user_id = (SELECT id FROM users WHERE username = ?)";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -1115,7 +1151,7 @@ public class UserManager {
     // Cập nhật trạng thái player (ONLINE/AWAY/OFFLINE)
     public synchronized void updatePlayerStatus(String username, String status) {
         String sql = "UPDATE player_sessions SET status = ? " +
-                     "WHERE player_id = (SELECT id FROM users WHERE username = ?)";
+                     "WHERE user_id = (SELECT id FROM users WHERE username = ?)";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -1132,7 +1168,7 @@ public class UserManager {
     // Xóa session khi player logout
     public synchronized void deletePlayerSession(String username) {
         String sql = "DELETE FROM player_sessions " +
-                     "WHERE player_id = (SELECT id FROM users WHERE username = ?)";
+                     "WHERE user_id = (SELECT id FROM users WHERE username = ?)";
         
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
